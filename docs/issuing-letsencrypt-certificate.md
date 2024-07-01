@@ -13,7 +13,7 @@ requires that DNS records (A or CNAME) have been set and resolve to your server'
 $ sudo docker run -it --rm --name certbot -p 80:80 \
     -v "${PWD}/certs/etc/letsencrypt:/etc/letsencrypt" \
     -v "${PWD}/certs/lib/letsencrypt:/var/lib/letsencrypt" \
-    certbot/certbot certonly --standalone -d mm.example.com
+    certbot/certbot certonly --standalone -d core.techlabs.cc
 ```
 
 ### 2. Changing the authenticator to webroot for later renewals
@@ -23,7 +23,7 @@ $ sudo docker run -it --rm --name certbot \
     -v "${PWD}/certs/etc/letsencrypt:/etc/letsencrypt" \
     -v "${PWD}/certs/lib/letsencrypt:/var/lib/letsencrypt" \
     -v shared-webroot:/usr/share/nginx/html \
-    certbot/certbot certonly -a webroot -w /usr/share/nginx/html -d mm.example.com
+    certbot/certbot certonly -a webroot -w /usr/share/nginx/html -d core.techlabs.cc
 ```
 
 This will ask you to abort or renew the certificate. When choosing to renew `certbot` will alter the renewal
@@ -31,14 +31,14 @@ configuration to *webroot*.
 As an alternative (which will save you one certificate creation request https://letsencrypt.org/docs/rate-limits/) this can be done by yourself with the following commands
 
 ```
-$ sudo sed -i 's/standalone/webroot/' ${PWD}/certs/etc/letsencrypt/renewal/mm.example.com.conf
-$ sudo tee -a ${PWD}/certs/etc/letsencrypt/renewal/mm.example.com.conf > /dev/null << EOF
+$ sudo sed -i 's/standalone/webroot/' ${PWD}/certs/etc/letsencrypt/renewal/core.techlabs.cc.conf
+$ sudo tee -a ${PWD}/certs/etc/letsencrypt/renewal/core.techlabs.cc.conf > /dev/null << EOF
 webroot_path = /usr/share/nginx/html,
 [[webroot_map]]
 EOF
 ```
 
-### 3. Command for requesting renewal (Let's Encrypt certificates do have a 3 month lifetime)
+# 3. Command for requesting renewal (Let's Encrypt certificates do have a 3 month lifetime, Only run this when the Cert expires)
 
 ```
 sudo docker run --rm --name certbot \
@@ -51,3 +51,9 @@ sudo docker run --rm --name certbot \
 
 This command can be called with a systemd timer on a regulary basis (e.g. once a day). Please take a look at the
 *contrib/systemd* folder.
+
+### 4. Run docker compose command
+Start docker compose and wait for the containers to start.
+```
+docker-compose -f docker-compose.yml -f docker-compose.nginx.yml up -d
+```
