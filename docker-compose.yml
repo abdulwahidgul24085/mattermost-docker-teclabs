@@ -1,30 +1,11 @@
 # https://docs.docker.com/compose/environment-variables/
 
 services:
-  postgres:
-    image: postgres:${POSTGRES_IMAGE_TAG}
-    restart: ${RESTART_POLICY}
-    security_opt:
-      - no-new-privileges:true
-    pids_limit: 100
-    read_only: true
-    tmpfs:
-      - /tmp
-      - /var/run/postgresql
-    volumes:
-      - ${POSTGRES_DATA_PATH}:/var/lib/postgresql/data
-    environment:
-      # timezone inside container
-      - TZ
-
-      # necessary Postgres options/variables
-      - POSTGRES_USER
-      - POSTGRES_PASSWORD
-      - POSTGRES_DB
-
   mattermost:
-    depends_on:
-      - postgres
+    container_name: mattermost
+    cpus: "1.0"
+    mem_reservation: 1g  # soft reservation
+    mem_limit: 2g       # hard ceiling1~    mem_reservation: 32m  # soft reservation
     image: mattermost/${MATTERMOST_IMAGE}:${MATTERMOST_IMAGE_TAG}
     restart: ${RESTART_POLICY}
     security_opt:
@@ -40,10 +21,6 @@ services:
       - ${MATTERMOST_PLUGINS_PATH}:/mattermost/plugins:rw
       - ${MATTERMOST_CLIENT_PLUGINS_PATH}:/mattermost/client/plugins:rw
       - ${MATTERMOST_BLEVE_INDEXES_PATH}:/mattermost/bleve-indexes:rw
-      # When you want to use SSO with GitLab, you have to add the cert pki chain of GitLab inside Alpine
-      # to avoid Token request failed: certificate signed by unknown authority 
-      # (link: https://github.com/mattermost/mattermost-server/issues/13059 and https://github.com/mattermost/docker/issues/34)
-      # - ${GITLAB_PKI_CHAIN_PATH}:/etc/ssl/certs/pki_chain.pem:ro
     environment:
       # timezone inside container
       - TZ
@@ -57,14 +34,35 @@ services:
 
       # additional settings
       - MM_SERVICESETTINGS_SITEURL
+      - APP_PORT
+    networks:
+      - mattermost-net
+      - docker_db_scripts
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4080/api/v4/system/ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
-# If you use rolling image tags and feel lucky watchtower can automatically pull new images and
-# instantiate containers from it. https://containrrr.dev/watchtower/
-# Please keep in mind watchtower will have access on the docker socket. This can be a security risk.
-#
-#  watchtower:
-#    container_name: watchtower
-#    image: containrrr/watchtower:latest
-#    restart: unless-stopped
-#    volumes:
-#      - /var/run/docker.sock:/var/run/docker.sock
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: mattermost_cldflr
+    # ── resource caps ────────────────────────────
+    cpus: "0.25"          # max 25 % of one logical core
+    mem_reservation: 32m  # soft reservation
+    mem_limit: 128m       # hard ceiling
+    # ─────────────────────────────────────────────
+    restart: ${RESTART_POLICY}
+    command: tunnel --no-autoupdate run --token ${TUNNEL_TOKEN}
+    environment:
+      - TUNNEL_TOKEN
+    networks:
+      - mattermost-net
+
+networks:
+  mattermost-net:
+    external: true
+
+  docker_db_scripts:
+    external: true
