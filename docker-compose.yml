@@ -12,6 +12,8 @@ services:
       - no-new-privileges:true
     pids_limit: 200
     read_only: ${MATTERMOST_CONTAINER_READONLY}
+    expose:
+      - "4080"
     tmpfs:
       - /tmp
     volumes:
@@ -36,7 +38,6 @@ services:
       - MM_SERVICESETTINGS_SITEURL
       - APP_PORT
     networks:
-      - mattermost-net
       - docker_db_scripts
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4080/api/v4/system/ping"]
@@ -45,24 +46,6 @@ services:
       retries: 5
       start_period: 30s
 
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    container_name: mattermost_cldflr
-    # ── resource caps ────────────────────────────
-    cpus: "0.25"          # max 25 % of one logical core
-    mem_reservation: 32m  # soft reservation
-    mem_limit: 128m       # hard ceiling
-    # ─────────────────────────────────────────────
-    restart: ${RESTART_POLICY}
-    command: tunnel --no-autoupdate run --token ${TUNNEL_TOKEN}
-    environment:
-      - TUNNEL_TOKEN
-    networks:
-      - mattermost-net
-
 networks:
-  mattermost-net:
-    external: true
-
   docker_db_scripts:
     external: true
